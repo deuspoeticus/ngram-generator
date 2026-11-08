@@ -130,3 +130,8 @@ Fonts:
   the SIL Open Font License (`fonts/OFL.txt`).
 
 If you share the project, keep the license files next to the fonts.
+
+## License
+
+The code (`index.html`, `ngram.js`) is released under the MIT License, see
+`LICENSE`. The bundled fonts keep their own licenses, listed above.
