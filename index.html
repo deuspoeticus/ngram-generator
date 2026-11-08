@@ -112,6 +112,7 @@
     /* Right: generated text */
     .legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.95rem; color: var(--muted); }
     .swatch { display: inline-block; width: 0.75rem; height: 0.75rem; vertical-align: -0.05rem; margin-right: 0.35rem; }
+    .swatch.plain { border: 1px solid var(--muted); }
     #output {
       flex: 1; min-height: 0; overflow: hidden; margin: 0;
       font-family: var(--serif); font-size: 1.5rem; line-height: 1.6;
@@ -235,6 +236,7 @@ And God saw every thing that he had made, and, behold, it was very good. And the
         <span><span class="swatch verbatim"></span>Whole sentence copied verbatim</span>
         <span><span class="swatch copied"></span>Stretch longer than n tokens copied</span>
         <span><span class="swatch novel"></span>Jump: never follows the text before it in the source</span>
+        <span title="Any n tokens in a row always appear in the source, because that is how the model picks tokens."><span class="swatch plain"></span>No color: copied stretch of n tokens or fewer (guaranteed by the model)</span>
       </div>
       <p id="output"></p>
       <div class="summary" id="summary"></div>
