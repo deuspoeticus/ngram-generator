@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>N-gram Generator</title>
+  <style>
+    /* Instrument Serif, bundled in ./fonts so the page works offline (OFL license). */
+    @font-face {
+      font-family: "Instrument Serif";
+      src: local("Instrument Serif"), url("fonts/InstrumentSerif-Regular.ttf") format("truetype");
+      font-style: normal; font-weight: 400; font-display: swap;
+    }
+    @font-face {
+      font-family: "Instrument Serif";
+      src: local("Instrument Serif Italic"), url("fonts/InstrumentSerif-Italic.ttf") format("truetype");
+      font-style: italic; font-weight: 400; font-display: swap;
+    }
+
+    /* Nimbus Sans Narrow, bundled too (AGPL-3 with font exception, see fonts/). */
+    @font-face {
+      font-family: "Nimbus Sans Narrow";
+      src: local("Nimbus Sans Narrow"), url("fonts/NimbusSansNarrow-Regular.otf") format("opentype");
+      font-style: normal; font-weight: 400; font-display: swap;
+    }
+    @font-face {
+      font-family: "Nimbus Sans Narrow";
+      src: local("Nimbus Sans Narrow Bold"), url("fonts/NimbusSansNarrow-Bold.otf") format("opentype");
+      font-style: normal; font-weight: 700; font-display: swap;
+    }
+
+    :root {
+      --bg: #ffffff; --fg: #000000; --muted: #6b6b6b; --line: #000000; --faint: #e5e5e5;
+      --sans: "Nimbus Sans Narrow", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+      --serif: "Instrument Serif", Georgia, serif;
+
+      /* Annotation colors: the only color on the page. */
+      --blue-bg: #dbeafe;   --blue: #1d4ed8;
+      --orange-bg: #ffedd5; --orange: #c2410c;
+      --green-bg: #dcfce7;  --green: #15803d;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000; --fg: #ffffff; --muted: #9a9a9a; --line: #ffffff; --faint: #333333;
+        --blue-bg: #1e3a8a88;   --blue: #93c5fd;
+        --orange-bg: #9a341288; --orange: #fdba74;
+        --green-bg: #14532d88;  --green: #86efac;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: var(--sans); background: var(--bg); color: var(--fg);
+      display: flex; flex-direction: column; padding: 20px 24px; gap: 16px; overflow: hidden;
+    }
+
+    header { display: flex; align-items: baseline; gap: 1.25rem; flex-wrap: wrap;
+             border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+    h1 { font-family: var(--serif); font-weight: 400; font-size: 2.25rem; line-height: 1; margin: 0; }
+    .sub { color: var(--muted); font-size: 1rem; }
+    .logo { margin-left: auto; align-self: center; color: var(--fg); line-height: 0; }
+    .logo svg { width: 32px; height: 32px; display: block; }
+    .logo:hover { opacity: 0.6; }
+
+    main {
+      flex: 1; min-height: 0;
+      display: grid; grid-template-columns: minmax(280px, 2fr) 3fr;
+    }
+    .panel { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+    .panel + .panel { border-left: 1px solid var(--line); padding-left: 24px; margin-left: 24px; }
+    h2 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin: 0; }
+
+    /* Left: source text and controls */
+    textarea {
+      flex: 1; min-height: 0; width: 100%; resize: none;
+      font-family: var(--sans); font-size: 1.05rem; line-height: 1.45;
+      padding: 10px; background: var(--bg); color: var(--fg);
+      border: 1px solid var(--line); border-radius: 0; outline: none;
+    }
+    textarea:focus { box-shadow: inset 0 0 0 1px var(--line); }
+    textarea::selection { background: var(--fg); color: var(--bg); }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; font-size: 1rem; }
+    .controls label { display: inline-flex; align-items: center; gap: 6px; }
+    .controls .wide { flex: 1 1 100%; }
+    input[type=number], input[type=text] {
+      font: inherit; padding: 0.1rem 0.2rem;
+      background: transparent; color: var(--fg);
+      border: none; border-bottom: 1px solid var(--line); border-radius: 0; outline: none;
+    }
+    input[type=number] { width: 3rem; text-align: center; }
+    input[type=text] { flex: 1; min-width: 0; }
+    input[type=text]::placeholder { color: var(--muted); }
+    select {
+      font: inherit; padding: 0.1rem 0.2rem; cursor: pointer;
+      background: var(--bg); color: var(--fg);
+      border: none; border-bottom: 1px solid var(--line); border-radius: 0; outline: none;
+    }
+    input[type=range] { width: 7rem; accent-color: var(--fg); }
+    output { min-width: 2rem; font-variant-numeric: tabular-nums; }
+    input[type=file] { display: none; }
+    .btn {
+      font: inherit; padding: 0.35rem 1rem; cursor: pointer; border-radius: 0;
+      border: 1px solid var(--line); background: transparent; color: var(--fg);
+    }
+    .btn:hover { background: var(--fg); color: var(--bg); }
+    .btn.primary { background: var(--fg); color: var(--bg); margin-left: auto; }
+    .btn.primary:hover { background: transparent; color: var(--fg); }
+    .btn.small { padding: 0.1rem 0.6rem; font-size: 0.9rem; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .stats { font-size: 0.95rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; cursor: help; }
+
+    /* Right: generated text */
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.95rem; color: var(--muted); }
+    .swatch { display: inline-block; width: 0.75rem; height: 0.75rem; vertical-align: -0.05rem; margin-right: 0.35rem; }
+    #output {
+      flex: 1; min-height: 0; overflow: hidden; margin: 0;
+      font-family: var(--serif); font-size: 1.5rem; line-height: 1.6;
+    }
+    .summary { font-size: 0.95rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+
+    .mark { padding: 0 0.15em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+    .copied   { background: var(--blue-bg);   box-shadow: inset 0 -2px 0 var(--blue); }
+    .novel    { background: var(--orange-bg); box-shadow: inset 0 -2px 0 var(--orange); }
+    .verbatim { background: var(--green-bg);  box-shadow: inset 0 -2px 0 var(--green); }
+    #output.char .mark { padding: 0; } /* padding would split words apart */
+
+    .tok { cursor: pointer; }
+    .tok:hover, .tok.active { text-decoration: underline; text-underline-offset: 3px; }
+
+    /* Popup showing what could have come next */
+    #popup {
+      position: fixed; z-index: 10; width: 300px;
+      background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+      box-shadow: 4px 4px 0 var(--fg); padding: 12px 14px; font-size: 0.95rem;
+    }
+    #popup[hidden] { display: none; }
+    .pop-title { margin-bottom: 2px; }
+    .pop-title b { font-family: var(--serif); font-weight: 400; font-size: 1.2rem; }
+    .pop-note { color: var(--muted); margin-bottom: 8px; }
+    .pop-row {
+      display: grid; grid-template-columns: 1fr 90px 3em; gap: 8px; align-items: center;
+      padding: 2px 4px; margin: 0 -4px; cursor: pointer;
+    }
+    .pop-row:hover { background: var(--faint); }
+    .pop-row .word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pop-row.chosen { font-weight: 700; }
+    .pop-row.chosen .word::before { content: "→ "; }
+    .pop-row .pct { text-align: right; font-variant-numeric: tabular-nums; }
+    .track { display: block; height: 6px; background: var(--faint); }
+    .bar { display: block; height: 100%; background: var(--fg); }
+    .pop-more { color: var(--muted); margin-top: 6px; }
+    .pop-hint { color: var(--muted); margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--faint); }
+
+    /* Phones: stack the panels and let the page scroll. */
+    @media (max-width: 720px) {
+      body { overflow: auto; height: auto; padding: 16px; }
+      main { grid-template-columns: 1fr; gap: 20px; }
+      .panel + .panel { border-left: none; padding-left: 0; margin-left: 0;
+                        border-top: 1px solid var(--line); padding-top: 16px; }
+      textarea { min-height: 10rem; }
+      #output { min-height: 12rem; }
+      #popup { width: calc(100vw - 32px); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>N-gram generator</h1>
+    <span class="sub">Train on a text, then see where the generated text copies it and where it jumps. Click any word to see what else could have come next.</span>
+    <a class="logo" href="https://deuspoeticus.github.io" aria-label="DEVSPOETICVS" title="deuspoeticus.github.io">
+      <svg viewBox="80 80 200 200" aria-hidden="true"><path fill="currentColor" d="M 133.2 80 L 146.8 80 L 173.2 80 L 186.8 80 A 13.2 13.2 0 0 1 200 93.2 L 200 106.8 A 13.2 13.2 0 0 0 213.2 120 L 226.8 120 A 13.2 13.2 0 0 0 240 106.8 L 240 93.2 A 13.2 13.2 0 0 1 253.2 80 L 266.8 80 A 13.2 13.2 0 0 1 280 93.2 L 280 106.8 A 13.2 13.2 0 0 1 266.8 120 L 253.2 120 A 13.2 13.2 0 0 0 240 133.2 L 240 146.8 A 13.2 13.2 0 0 0 253.2 160 L 266.8 160 A 13.2 13.2 0 0 1 280 173.2 L 280 186.8 L 280 213.2 L 280 226.8 A 13.2 13.2 0 0 1 266.8 240 L 253.2 240 A 13.2 13.2 0 0 0 240 253.2 L 240 266.8 A 13.2 13.2 0 0 1 226.8 280 L 213.2 280 L 186.8 280 L 173.2 280 A 13.2 13.2 0 0 1 160 266.8 L 160 253.2 A 13.2 13.2 0 0 0 146.8 240 L 133.2 240 A 13.2 13.2 0 0 0 120 253.2 L 120 266.8 A 13.2 13.2 0 0 1 106.8 280 L 93.2 280 A 13.2 13.2 0 0 1 80 266.8 L 80 253.2 A 13.2 13.2 0 0 1 93.2 240 L 106.8 240 A 13.2 13.2 0 0 0 120 226.8 L 120 213.2 A 13.2 13.2 0 0 0 106.8 200 L 93.2 200 A 13.2 13.2 0 0 1 80 186.8 L 80 173.2 L 80 146.8 L 80 133.2 A 13.2 13.2 0 0 1 93.2 120 L 106.8 120 A 13.2 13.2 0 0 0 120 106.8 L 120 93.2 A 13.2 13.2 0 0 1 133.2 80 Z M 146.8 120 L 133.2 120 A 13.2 13.2 0 0 0 120 133.2 L 120 146.8 L 120 173.2 L 120 186.8 A 13.2 13.2 0 0 0 133.2 200 L 146.8 200 A 13.2 13.2 0 0 0 160 186.8 L 160 173.2 A 13.2 13.2 0 0 1 173.2 160 L 186.8 160 A 13.2 13.2 0 0 0 200 146.8 L 200 133.2 A 13.2 13.2 0 0 0 186.8 120 L 173.2 120 L 146.8 120 Z M 240 186.8 L 240 173.2 A 13.2 13.2 0 0 0 226.8 160 L 213.2 160 A 13.2 13.2 0 0 0 200 173.2 L 200 186.8 A 13.2 13.2 0 0 1 186.8 200 L 173.2 200 A 13.2 13.2 0 0 0 160 213.2 L 160 226.8 A 13.2 13.2 0 0 0 173.2 240 L 186.8 240 L 213.2 240 L 226.8 240 A 13.2 13.2 0 0 0 240 226.8 L 240 213.2 L 240 186.8 Z"/></svg>
+    </a>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Source text</h2>
+      <textarea id="corpus" aria-label="Source text">The cat sat on the mat. The dog sat on the log. The cat saw the dog.
+The dog saw the cat on the mat. A cat and a dog sat together.</textarea>
+      <div class="controls">
+        <label class="wide">start with <input type="text" id="start" placeholder="optional, e.g. the dog"></label>
+        <label>tokens
+          <select id="mode">
+            <option value="word">words</option>
+            <option value="char">characters</option>
+          </select>
+        </label>
+        <label>n <input type="number" id="n" value="2" min="1" max="12"></label>
+        <label>sentences <input type="number" id="count" value="10" min="1" max="200"></label>
+        <label>temperature <input type="range" id="temp" min="0.1" max="3" step="0.1" value="1"><output id="tempVal">1.0</output></label>
+      </div>
+      <div class="controls">
+        <label class="btn">Load .txt<input type="file" id="file" accept=".txt"></label>
+        <button class="btn primary" id="run">Generate</button>
+      </div>
+      <div class="stats" id="stats"
+           title="Sparsity: of all the word combinations this vocabulary allows, the source contains only a tiny fraction. Most n-grams are never seen."></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Generated text</h2>
+        <button class="btn small" id="copy">Copy</button>
+      </div>
+      <div class="legend">
+        <span><span class="swatch verbatim"></span>Whole sentence copied verbatim</span>
+        <span><span class="swatch copied"></span>Stretch longer than n tokens copied</span>
+        <span><span class="swatch novel"></span>Jump: never follows the text before it in the source</span>
+      </div>
+      <p id="output"></p>
+      <div class="summary" id="summary"></div>
+    </section>
+  </main>
+
+  <div id="popup" hidden></div>
+
+  <script src="ngram.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+
+    $('file').addEventListener('change', async e => {
+      const f = e.target.files[0];
+      if (f) { $('corpus').value = await f.text(); run(); }
+    });
+
+    $('temp').addEventListener('input', () => {
+      $('tempVal').textContent = Number($('temp').value).toFixed(1);
+    });
+
+    $('start').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+
+    // Switching modes also switches n to a sensible default: characters need
+    // a longer window than words before the output looks like language.
+    $('mode').addEventListener('change', () => {
+      $('n').value = $('mode').value === 'char' ? 4 : 2;
+      $('start').placeholder = $('mode').value === 'char' ? 'optional, e.g. the d' : 'optional, e.g. the dog';
+      run();
+    });
+
+    // State of the last run.
+    let current = null;  // { model, n, mode, temperature, corpus }
+    let sentences = [];  // [{ tokens, startLen, picked, el, tokEls, verbatim, jumps }]
+    const tokenInfo = new WeakMap(); // token <span> -> { s: sentence, i: index }
+
+    function capitalize(text) {
+      return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
+    function isPunct(token) {
+      return /^[.,!?;:]$/.test(token);
+    }
+
+    // What one token is called, for messages: "word" or "character".
+    function unit(plural = false) {
+      const u = current.mode === 'char' ? 'character' : 'word';
+      return plural ? u + 's' : u;
+    }
+
+    // A token as shown in messages and the popup. Spaces are made visible.
+    function label(token) {
+      if (token === BOS) return '⟨start⟩';
+      if (token === EOS) return '⟨end of sentence⟩';
+      if (token === ' ') return '␣';
+      return token;
+    }
+
+    // Context tokens as one readable string.
+    function showContext(tokens) {
+      return tokens.map(label).join(current.mode === 'char' ? '' : ' ');
+    }
+
+    // ---------------------------------------------------------------------
+    // Annotating one sentence: split it into colored pieces
+    //   [{ start, tokens, cls, title, src }]
+    // where src is the [start, end) character range of a copied piece in the
+    // source text.
+    // ---------------------------------------------------------------------
+    function annotate(model, tokens, n) {
+      const chunks = model.segment(tokens);
+
+      if (model.inSource(tokens)) {
+        const from = chunks[0].from;
+        return {
+          verbatim: true, jumps: 0,
+          pieces: [{
+            start: 0, tokens, cls: 'verbatim', title: 'Whole sentence copied from the source',
+            src: model.sourceRange(from, from + tokens.length - 1),
+          }],
+        };
+      }
+
+      // Chunks after the first start with a jump word (orange). The rest of a
+      // chunk is blue only if the chunk is longer than n tokens, since any n
+      // tokens in a row always match the source.
+      const pieces = [];
+      let jumps = 0, pos = 0;
+      chunks.forEach((chunk, k) => {
+        let rest = chunk.tokens;
+        let skip = 0;
+        if (k > 0 || !chunk.seen) {
+          const prev = k > 0 ? showContext(chunks[k - 1].tokens) : '';
+          pieces.push({
+            start: pos, tokens: [rest[0]], cls: 'novel',
+            title: chunk.seen
+              ? `Jump: “${prev}” is never followed by “${label(rest[0])}” in the source`
+              : `“${label(rest[0])}” never appears in the source`,
+          });
+          if (k > 0) jumps++;
+          rest = rest.slice(1);
+          skip = 1;
+          pos++;
+        }
+        if (rest.length) {
+          const long = chunk.tokens.length > n;
+          pieces.push({
+            start: pos, tokens: rest, cls: long ? 'copied' : null,
+            title: long ? `${chunk.tokens.length} tokens in a row copied from the source · click to find it` : '',
+            src: long ? model.sourceRange(chunk.from + skip, chunk.from + chunk.tokens.length - 1) : null,
+          });
+          pos += rest.length;
+        }
+      });
+      return { verbatim: false, jumps, pieces };
+    }
+
+    // (Re)build the DOM for sentence s. Every token is its own clickable
+    // <span>; runs of tokens are wrapped in a colored mark where annotated.
+    function build(s) {
+      const { model, n } = current;
+      const { verbatim, jumps, pieces } = annotate(model, s.tokens, n);
+      const el = document.createElement('span');
+      const tokEls = [];
+
+      for (const piece of pieces) {
+        let box = el;
+        if (piece.cls) {
+          box = document.createElement('span');
+          box.className = 'mark ' + piece.cls;
+          box.title = piece.title;
+          if (piece.src) [box.dataset.a, box.dataset.b] = piece.src;
+        }
+        piece.tokens.forEach((token, j) => {
+          const i = piece.start + j;
+          // Word mode: space before every token except the first and
+          // punctuation. The space before a mark goes outside it, so it isn't
+          // highlighted. Character mode: spaces are tokens themselves.
+          if (current.mode === 'word' && i > 0 && !isPunct(token)) (j === 0 ? el : box).append(' ');
+          const t = document.createElement('span');
+          t.className = 'tok';
+          t.textContent = i === 0 ? capitalize(token) : token;
+          tokenInfo.set(t, { s, i });
+          tokEls.push(t);
+          box.append(t);
+        });
+        if (box !== el) el.append(box);
+      }
+      Object.assign(s, { el, tokEls, verbatim, jumps });
+    }
+
+    // ---------------------------------------------------------------------
+    // Generating, and fitting the text to the panel.
+    // ---------------------------------------------------------------------
+    function run() {
+      hidePopup();
+      const n = Number($('n').value);
+      const mode = $('mode').value;
+      const count = Number($('count').value);
+      const temperature = Number($('temp').value);
+      const corpus = $('corpus').value;
+      const model = new NGramModel(n, { mode }).train(corpus);
+      const start = model.tokenizePrompt($('start').value);
+      current = { model, n, mode, temperature, corpus };
+      $('output').classList.toggle('char', mode === 'char');
+
+      sentences = [];
+      for (let i = 0; i < count; i++) {
+        const tokens = model.generateTokens(undefined, { start, temperature });
+        if (tokens.length === 0) continue;
+        const s = { tokens, startLen: start.length, picked: new Set() };
+        build(s);
+        sentences.push(s);
+      }
+      showStats(model, n);
+      fit();
+    }
+
+    // Make the text fit its panel without scrolling: first shrink the font
+    // down to a readable minimum, then drop sentences from the end if needed.
+    // Instrument Serif runs small, so these sizes are larger than usual.
+    const MAX_FONT = 1.5, MIN_FONT = 1.1; // rem
+
+    function show(k) {
+      const out = $('output');
+      out.replaceChildren();
+      sentences.slice(0, k).forEach((s, i) => {
+        if (i > 0) out.append(' ');
+        out.append(s.el);
+      });
+    }
+
+    let shownCount = 0; // how many sentences fit on screen
+
+    function fit() {
+      const out = $('output');
+      const overflows = () => out.scrollHeight > out.clientHeight + 1;
+      let k = sentences.length;
+      show(k);
+
+      let size = MAX_FONT;
+      out.style.fontSize = size + 'rem';
+      while (overflows() && size > MIN_FONT) {
+        size = Math.max(MIN_FONT, size - 0.05);
+        out.style.fontSize = size + 'rem';
+      }
+      while (overflows() && k > 1) show(--k);
+      shownCount = k;
+
+      const shown = sentences.slice(0, k);
+      const verbatim = shown.filter(s => s.verbatim).length;
+      const jumps = shown.reduce((sum, s) => sum + s.jumps, 0);
+      const hidden = sentences.length - k;
+      $('summary').textContent = k === 0
+        ? 'Nothing generated. Add some source text.'
+        : `${k} sentences · ${verbatim} copied verbatim · ${jumps} jumps ` +
+          `(${(jumps / k).toFixed(1)} per sentence)` +
+          (hidden ? ` · ${hidden} more didn’t fit` : '');
+    }
+
+    // ---------------------------------------------------------------------
+    // Model stats: size, and sparsity (seen n-grams vs. all possible ones).
+    // ---------------------------------------------------------------------
+    function showStats(model, n) {
+      const st = model.stats();
+      const fmt = x => x.toLocaleString('en-US');
+      const name = (current.mode === 'char' ? 'character ' : '') +
+        (['unigrams', 'bigrams', 'trigrams'][n - 1] ?? `${n}-grams`);
+      const possible = st.possible >= 1e12
+        ? `about 10^${Math.floor(Math.log10(st.possible))}`
+        : fmt(st.possible);
+      const pct = st.ngrams / st.possible * 100;
+      const pctText = pct >= 1 ? pct.toFixed(0) + '%' : pct >= 0.01 ? pct.toFixed(2) + '%' : 'under 0.01%';
+      $('stats').textContent =
+        `${fmt(st.tokens)} ${unit(true)} · ${fmt(st.types)} ${unit()} types · ` +
+        `${fmt(st.ngrams)} distinct ${name} seen, out of ${possible} possible (${pctText})`;
+    }
+
+    // ---------------------------------------------------------------------
+    // Clicking a word in a blue or green stretch selects where that stretch
+    // came from in the source text.
+    // ---------------------------------------------------------------------
+    function selectInSource(a, b) {
+      const ta = $('corpus');
+      if (ta.value !== current.corpus) return; // source was edited since; offsets are stale
+
+      // Scroll so the passage is visible: measure how tall the text before it
+      // is by temporarily cutting the textarea's contents at that point.
+      const full = ta.value;
+      ta.value = full.slice(0, a);
+      ta.scrollTop = ta.scrollHeight;
+      const y = ta.scrollTop;
+      ta.value = full;
+      ta.scrollTop = y > 0 ? y + ta.clientHeight * 0.6 : 0;
+
+      ta.focus({ preventScroll: true });
+      ta.setSelectionRange(a, b);
+    }
+
+    // ---------------------------------------------------------------------
+    // Popup: click a word to see every word the model could have picked
+    // there, and click one of those to rewrite the sentence from that point.
+    // ---------------------------------------------------------------------
+    const popup = $('popup');
+    let activeTok = null;
+    let popupRows = []; // the distribution rows currently shown
+
+    function hidePopup() {
+      popup.hidden = true;
+      if (activeTok) activeTok.classList.remove('active');
+      activeTok = null;
+    }
+
+    function showPopup(tokEl) {
+      const { s, i } = tokenInfo.get(tokEl);
+      const { model, temperature } = current;
+      const context = model.contextFor(s.tokens, i);
+      const chosen = s.tokens[i];
+      const dist = model.distribution(context, temperature);
+
+      popup.replaceChildren();
+      const add = (tag, cls, text) => {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text !== undefined) e.textContent = text;
+        popup.append(e);
+        return e;
+      };
+
+      const title = add('div', 'pop-title');
+      if (context.length === 0) {
+        title.textContent = `No context (n = 1): every ${unit()} is drawn from overall frequency`;
+      } else {
+        title.append('After ');
+        const b = document.createElement('b');
+        b.textContent = '“' + showContext(context) + '”';
+        title.append(b);
+      }
+      add('div', 'pop-note',
+        i < s.startLen ? `You typed this ${unit()}, so the model didn’t choose it.`
+        : s.picked.has(i) ? `You picked this ${unit()}.`
+        : `${dist.length} possible next ${unit(dist.length !== 1)}` +
+          (temperature === 1 ? '' : ` · temperature ${temperature.toFixed(1)}`));
+
+      // Top rows, making sure the chosen word is always listed.
+      const LIMIT = 8;
+      popupRows = dist.slice(0, LIMIT);
+      if (!popupRows.some(r => r.token === chosen)) {
+        const r = dist.find(r => r.token === chosen);
+        if (r) popupRows = [...popupRows.slice(0, LIMIT - 1), r];
+      }
+      popupRows.forEach((r, idx) => {
+        const row = add('div', 'pop-row' + (r.token === chosen ? ' chosen' : ''));
+        row.dataset.idx = idx;
+        row.title = `seen ${r.count}× in the source · click to use it here`;
+        const w = document.createElement('span');
+        w.className = 'word';
+        w.textContent = label(r.token);
+        const track = document.createElement('span');
+        track.className = 'track';
+        const bar = document.createElement('span');
+        bar.className = 'bar';
+        bar.style.width = (r.p * 100).toFixed(1) + '%';
+        track.append(bar);
+        const pct = document.createElement('span');
+        pct.className = 'pct';
+        pct.textContent = r.p >= 0.995 ? '100%' : r.p < 0.01 ? '<1%' : Math.round(r.p * 100) + '%';
+        row.append(w, track, pct);
+      });
+      if (dist.length > popupRows.length) add('div', 'pop-more', `+ ${dist.length - popupRows.length} more`);
+      if (dist.length === 0) add('div', 'pop-more', 'This context never appears in the source.');
+      else add('div', 'pop-hint', `Click a ${unit()} to rewrite the sentence from here.`);
+
+      // Place below the word, or above it if there's no room, and keep it on screen.
+      popup.hidden = false;
+      const r = tokEl.getBoundingClientRect();
+      const w = popup.offsetWidth, h = popup.offsetHeight;
+      const left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+      const top = r.bottom + 8 + h <= window.innerHeight ? r.bottom + 8 : Math.max(8, r.top - h - 8);
+      popup.style.left = left + 'px';
+      popup.style.top = top + 'px';
+
+      if (activeTok) activeTok.classList.remove('active');
+      activeTok = tokEl;
+      tokEl.classList.add('active');
+    }
+
+    // Replace word i of sentence s with `word`, and let the model write the
+    // rest of the sentence again from there.
+    function reroll(s, i, word) {
+      const { model, temperature } = current;
+      const prefix = s.tokens.slice(0, i);
+      const tokens = word === EOS
+        ? prefix // end the sentence here
+        : model.generateTokens(undefined, { start: [...prefix, word], temperature });
+      if (tokens.length === 0) return;
+
+      s.tokens = tokens;
+      s.startLen = Math.min(s.startLen, i);
+      s.picked = new Set([...s.picked].filter(j => j < i));
+      if (word !== EOS) s.picked.add(i);
+      build(s);
+      fit();
+
+      // Keep the popup open on the new word, so you can keep steering.
+      const tokEl = s.tokEls[i];
+      if (tokEl && tokEl.isConnected) showPopup(tokEl); else hidePopup();
+    }
+
+    $('output').addEventListener('click', e => {
+      const tok = e.target.closest('.tok');
+      if (!tok) return;
+      e.stopPropagation();
+      if (tok === activeTok) { hidePopup(); return; }
+      showPopup(tok);
+      const mark = tok.closest('.mark[data-a]');
+      if (mark) selectInSource(Number(mark.dataset.a), Number(mark.dataset.b));
+    });
+
+    popup.addEventListener('click', e => {
+      const row = e.target.closest('.pop-row');
+      if (!row || !activeTok) return;
+      // Rerolling rebuilds the popup, so the clicked row is gone by the time
+      // the click reaches document. Stop it there, or the popup would close.
+      e.stopPropagation();
+      const { s, i } = tokenInfo.get(activeTok);
+      reroll(s, i, popupRows[Number(row.dataset.idx)].token);
+    });
+
+    document.addEventListener('click', e => { if (!popup.contains(e.target)) hidePopup(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hidePopup(); });
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      hidePopup();
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(fit, 100);
+    });
+
+    // Refit once the web font has loaded, since it changes text width.
+    document.fonts.ready.then(fit);
+
+    // ---------------------------------------------------------------------
+    // Copy the sentences on screen as plain text, without annotations.
+    // ---------------------------------------------------------------------
+    $('copy').addEventListener('click', async () => {
+      const text = sentences.slice(0, shownCount).map(s => s.el.textContent).join(' ');
+      const btn = $('copy');
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // Fallback for browsers that block the clipboard API on local files.
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.append(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      btn.textContent = 'Copied';
+      clearTimeout(btn._timer);
+      btn._timer = setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    });
+
+    $('run').addEventListener('click', run);
+    run();
+  </script>
+</body>
+</html>
