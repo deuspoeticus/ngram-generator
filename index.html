@@ -110,7 +110,7 @@
     .stats { font-size: 0.95rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; cursor: help; }
 
     /* Right: generated text */
-    .legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.95rem; color: var(--muted); }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 18px; cursor: help; font-size: 0.95rem; color: var(--muted); }
     .swatch { display: inline-block; width: 0.75rem; height: 0.75rem; vertical-align: -0.05rem; margin-right: 0.35rem; }
     .swatch.plain { border: 1px solid var(--muted); }
     #output {
@@ -233,10 +233,10 @@ And God saw every thing that he had made, and, behold, it was very good. And the
         <button class="btn small" id="copy">Copy</button>
       </div>
       <div class="legend">
-        <span><span class="swatch verbatim"></span>Whole sentence copied verbatim</span>
-        <span><span class="swatch copied"></span>Stretch longer than n tokens copied</span>
-        <span><span class="swatch novel"></span>Jump: never follows the text before it in the source</span>
-        <span title="Any n tokens in a row always appear in the source, because that is how the model picks tokens."><span class="swatch plain"></span>No color: copied stretch of n tokens or fewer (guaranteed by the model)</span>
+        <span title="The whole sentence appears word for word in the source."><span class="swatch verbatim"></span>Verbatim sentence</span>
+        <span title="More than n tokens in a row copied from the source: the model followed one passage longer than it had to (memorization)."><span class="swatch copied"></span>Long copy (&gt; n)</span>
+        <span title="n tokens or fewer copied from the source. Always true of any n tokens in a row, because that is how the model picks tokens, so it is left uncolored."><span class="swatch plain"></span>Short copy (≤ n)</span>
+        <span title="This token never follows the text before it in the source: the model left one passage and continued from another."><span class="swatch novel"></span>Jump</span>
       </div>
       <p id="output"></p>
       <div class="summary" id="summary"></div>
