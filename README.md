@@ -21,7 +21,9 @@ This prints a few model stats and five generated sentences.
 
 ## Using the page
 
-1. Paste text into the left panel, or click **Load .txt**.
+1. The page starts with Genesis 1 from the King James Bible (public domain).
+   Its heavy repetition makes copied stretches and jumps easy to see. Replace
+   it by pasting your own text into the left panel, or click **Load .txt**.
 2. Pick **tokens** (words or characters), **n**, the number of sentences and
    the **temperature**, then click **Generate**.
 3. Read the annotated output on the right. Click any word to explore it.
